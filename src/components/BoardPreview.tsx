@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useBoardBuilder } from "@/contexts/BoardBuilderContext";
+import RowActionButtonLeft from "./RowActionButtonLeft";
+import RowActionButtonRight from "./RowActionButtonRight";
 
 const COLORS = {
   maple: "#f3e2c6",
@@ -17,7 +19,7 @@ const COLORS = {
 const TILE_WIDTH = 16;
 const TILE_HEIGHT = 16;
 const GAP_HEIGHT = 6;
-const SIDE_BUTTON_WIDTH = 28; // updated size
+const SIDE_BUTTON_WIDTH = 28;
 const SIDE_MARGIN = SIDE_BUTTON_WIDTH + 4;
 
 export default function BoardPreview() {
@@ -30,10 +32,36 @@ export default function BoardPreview() {
     large: 19,
   }[boardSize || "medium"];
 
-  const columnCount = stripA.length;
-  const previewRows = Array.from({ length: rowCount }, (_, i) =>
-    i % 2 === 0 ? stripA : stripB
-  );
+  const columnCount = boardSize === "large" ? 15 : 12;
+
+  // Only used once: build visual-only preview matrix
+  const [boardRows, setBoardRows] = useState<
+    { id: string; color: string | null }[][]
+  >([]);
+
+  useEffect(() => {
+    const rows = Array.from({ length: rowCount }, (_, rowIndex) => {
+      const sourceStrip = rowIndex % 2 === 0 ? stripA : stripB;
+
+      // Create a fully detached row for this index
+      return Array.from({ length: columnCount }, (_, colIndex) => ({
+        id: `${rowIndex}-${colIndex}-${Math.random()
+          .toString(36)
+          .substr(2, 5)}`,
+        color: sourceStrip[colIndex] || null,
+      }));
+    });
+
+    setBoardRows(rows);
+  }, [stripA, stripB, boardSize]);
+
+  const toggleRowFlip = (rowIndex: number) => {
+    setBoardRows((prev) => {
+      const updated = [...prev];
+      updated[rowIndex] = [...updated[rowIndex]].reverse();
+      return updated;
+    });
+  };
 
   const totalHeight =
     TILE_HEIGHT * rowCount + (activeRowIndex !== null ? GAP_HEIGHT * 2 : 0);
@@ -47,7 +75,7 @@ export default function BoardPreview() {
         height={totalHeight}
         viewBox={`-${SIDE_MARGIN} 0 ${totalWidth} ${totalHeight}`}
       >
-        {previewRows.map((row, rowIndex) => {
+        {boardRows.map((row, rowIndex) => {
           let y = rowIndex * TILE_HEIGHT;
           if (activeRowIndex !== null) {
             if (rowIndex === activeRowIndex) y += GAP_HEIGHT;
@@ -70,50 +98,27 @@ export default function BoardPreview() {
                 {rowLabel}
               </text>
 
-              {/* Row buttons */}
+              {/* Action buttons */}
               {activeRowIndex === rowIndex && (
                 <>
-                  {/* Left button */}
-                  <foreignObject
-                    x={-SIDE_MARGIN}
+                  <RowActionButtonLeft y={y} />
+                  <RowActionButtonRight
                     y={y}
-                    width={SIDE_BUTTON_WIDTH}
-                    height={TILE_HEIGHT}
-                  >
-                    <button
-                      className="w-full h-full flex items-center justify-center text-xs bg-white border border-gray-400 rounded-l hover:bg-gray-100"
-                      onClick={() => console.log("Left button clicked")}
-                    >
-                      ◀
-                    </button>
-                  </foreignObject>
-
-                  {/* Right button */}
-                  <foreignObject
-                    x={TILE_WIDTH * columnCount + 4}
-                    y={y}
-                    width={SIDE_BUTTON_WIDTH}
-                    height={TILE_HEIGHT}
-                  >
-                    <button
-                      className="w-full h-full flex items-center justify-center text-xs bg-white border border-gray-400 rounded-r hover:bg-gray-100"
-                      onClick={() => console.log("Right button clicked")}
-                    >
-                      ▶
-                    </button>
-                  </foreignObject>
+                    xOffset={TILE_WIDTH * columnCount + 4}
+                    onClick={() => toggleRowFlip(rowIndex)}
+                  />
                 </>
               )}
 
               {/* Row tiles */}
-              {row.map((woodId, colIndex) => (
+              {row.map((tile, colIndex) => (
                 <rect
-                  key={`${rowIndex}-${colIndex}`}
+                  key={tile.id}
                   x={colIndex * TILE_WIDTH}
                   y={y}
                   width={TILE_WIDTH}
                   height={TILE_HEIGHT}
-                  fill={COLORS[woodId] || "#eee"}
+                  fill={COLORS[tile.color] || "#eee"}
                   stroke={activeRowIndex === rowIndex ? "#000" : "#aaa"}
                   strokeWidth={activeRowIndex === rowIndex ? 1.5 : 0.5}
                   rx={2}
