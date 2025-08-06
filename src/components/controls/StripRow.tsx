@@ -31,13 +31,13 @@ export default function StripRow({
         <span className="text-xs font-medium text-[#5e3a1c]">{label}</span>
         <button
           onClick={clearStrip}
-          className="text-[10px] text-red-600 px-2 py-0.5 rounded hover:bg-red-100"
+          className="text-[10px] text-red-600 py-0.5 hover:bg-red-100"
         >
           Clear
         </button>
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-0.5">
         {strip.map((woodId, index) => (
           <Tile
             key={index}

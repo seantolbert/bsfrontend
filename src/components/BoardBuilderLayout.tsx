@@ -2,7 +2,7 @@ import TopNav from "./TopNav";
 import BoardPreview from "./BoardPreview";
 import BoardControls from "./BoardControls";
 import BottomNav from "./BottomNav";
-import OptionSelector from "./controls/OptionSelector";
+import OptionSelector from "./OptionSelector";
 
 export default function BoardBuilderLayout() {
   return (
