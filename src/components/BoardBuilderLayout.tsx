@@ -12,7 +12,7 @@ export default function BoardBuilderLayout() {
       </div>
       <div className="flex-1 flex flex-col">
         <div className="flex-1 flex px-4">
-          <div className="flex-2 overflow-hidden ">
+          <div className="flex-3 overflow-hidden ">
             <BoardPreview />
           </div>
           <div className="flex-1 overflow-hidden">
