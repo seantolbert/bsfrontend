@@ -2,7 +2,7 @@ import TopNav from "./TopNav";
 import BoardPreview from "./BoardPreview";
 import BoardControls from "./BoardControls";
 import BottomNav from "./BottomNav";
-import SizeSelector from "./controls/SizeSelector";
+import OptionSelector from "./controls/OptionSelector";
 
 export default function BoardBuilderLayout() {
   return (
@@ -11,12 +11,12 @@ export default function BoardBuilderLayout() {
         <TopNav />
       </div>
       <div className="flex-1 flex flex-col">
-        <div className="flex-1 flex">
-          <div className="flex-2 overflow-hidden pl-4">
+        <div className="flex-1 flex px-4">
+          <div className="flex-2 overflow-hidden ">
             <BoardPreview />
           </div>
-          <div className="flex-1 overflow-hidden pr-4">
-            <SizeSelector />
+          <div className="flex-1 overflow-hidden">
+            <OptionSelector />
           </div>
         </div>
         <div className="h-[300px] px-4 pb-2">

@@ -19,10 +19,23 @@ export default function AvailableWoods() {
 
   return (
     <div className="mt-4">
-      <h4 className="text-sm font-semibold mb-2 text-[#5e3a1c]">
-        Available Woods
-      </h4>
+      {/* Top Row: Left label and top-right selected wood name + price */}
+      <div className="flex justify-between items-center mb-1">
+        <h4 className="text-sm font-semibold text-[#5e3a1c]">
+          Available Woods
+        </h4>
 
+        {selectedWood && (
+          <div className="flex items-center gap-2 text-[11px] text-[#5e3a1c] font-medium">
+            <span className="whitespace-nowrap">
+              Selected: {selectedWood.name}
+            </span>
+            <span className="text-[10px] text-[#888] italic">+ $0.00</span>
+          </div>
+        )}
+      </div>
+
+      {/* Wood tile row */}
       <div className="flex gap-2 overflow-x-auto">
         {WOODS.map((wood) => (
           <div
@@ -39,12 +52,6 @@ export default function AvailableWoods() {
           </div>
         ))}
       </div>
-
-      {selectedWood && (
-        <div className="text-center mt-1 text-[11px] text-[#5e3a1c] font-medium">
-          {selectedWood.name}
-        </div>
-      )}
     </div>
   );
 }
