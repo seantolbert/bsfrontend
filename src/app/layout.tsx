@@ -13,7 +13,9 @@ export default function RootLayout({
         <header className="h-14 w-full border-b border-[#ddd] flex items-center px-4">
           <GlobalNav />
         </header>
+
         <main className="flex-1">{children}</main>
+
         <footer className="h-12 w-full border-t border-[#ddd] flex items-center justify-center px-4 text-sm text-[#666]">
           <GlobalFooter />
         </footer>
