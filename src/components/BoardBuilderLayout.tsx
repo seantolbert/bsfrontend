@@ -1,10 +1,15 @@
+"use client";
+
 import TopNav from "./TopNav";
 import BoardPreview from "./BoardPreview";
 import BoardControls from "./BoardControls";
 import BottomNav from "./BottomNav";
 import OptionSelector from "./OptionSelector";
+import { useSnapshotLoader } from "@/hooks/useSnapshotLoader";
 
 export default function BoardBuilderLayout() {
+  useSnapshotLoader();
+
   return (
     <div className="h-[calc(100vh-56px)] w-full flex flex-col">
       <div className="h-14 flex items-center justify-center border-b border-[#ddd] px-4">

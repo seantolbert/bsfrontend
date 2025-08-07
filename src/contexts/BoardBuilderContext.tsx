@@ -1,77 +1,49 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
-// Define the context shape
-const BoardBuilderContext = createContext(null);
+type BoardSize = "small" | "medium" | "large";
 
-export function BoardBuilderProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [pattern, setPattern] = useState<string | null>(null);
-  const [heldWood, setHeldWood] = useState<string | null>(null);
-  const [boardSize, setBoardSize] = useState<"small" | "medium" | "large">(
-    "medium"
-  );
-  const [woodSpecies, setWoodSpecies] = useState<string[]>([]);
-  const [edgeProfile, setEdgeProfile] = useState<string | null>(null);
-  const [juiceGroove, setJuiceGroove] = useState<boolean>(false);
-  const [brassFeet, setBrassFeet] = useState<boolean>(false);
+type Tile = {
+  id: string;
+  color: string | null;
+};
 
-  // --- Strip management ---
-  const getStripLength = (size: "small" | "medium" | "large" | null) => {
-    switch (size) {
-      case "large":
-        return 15;
-      default:
-        return 12;
-    }
-  };
+type Row = Tile[];
 
-  // Initialize strips at medium size (12)
-  const [stripA, setStripA] = useState<string[]>(
-    Array(getStripLength("medium")).fill(null)
-  );
-  const [stripB, setStripB] = useState<string[]>(
-    Array(getStripLength("medium")).fill(null)
-  );
+interface BoardBuilderContextType {
+  boardSize: BoardSize;
+  setBoardSize: (size: BoardSize) => void;
 
-  // Resize strips dynamically when boardSize changes
-  useEffect(() => {
-    const newLength = getStripLength(boardSize);
+  boardRows: Row[];
+  setBoardRows: (rows: Row[]) => void;
 
-    setStripA((prev) => {
-      const resized = [...prev.slice(0, newLength)];
-      while (resized.length < newLength) resized.push(null);
-      return resized;
-    });
+  stripA: (string | null)[];
+  setStripA: (woods: (string | null)[]) => void;
 
-    setStripB((prev) => {
-      const resized = [...prev.slice(0, newLength)];
-      while (resized.length < newLength) resized.push(null);
-      return resized;
-    });
-  }, [boardSize]);
+  stripB: (string | null)[];
+  setStripB: (woods: (string | null)[]) => void;
+}
+
+const BoardBuilderContext = createContext<BoardBuilderContextType | undefined>(
+  undefined
+);
+
+export function BoardBuilderProvider({ children }: { children: ReactNode }) {
+  const [boardSize, setBoardSize] = useState<BoardSize>("medium");
+
+  const [boardRows, setBoardRows] = useState<Row[]>([]);
+
+  const [stripA, setStripA] = useState<(string | null)[]>(Array(12).fill(null));
+  const [stripB, setStripB] = useState<(string | null)[]>(Array(12).fill(null));
 
   return (
     <BoardBuilderContext.Provider
       value={{
-        pattern,
-        setPattern,
-        heldWood,
-        setHeldWood,
         boardSize,
         setBoardSize,
-        woodSpecies,
-        setWoodSpecies,
-        edgeProfile,
-        setEdgeProfile,
-        juiceGroove,
-        setJuiceGroove,
-        brassFeet,
-        setBrassFeet,
+        boardRows,
+        setBoardRows,
         stripA,
         setStripA,
         stripB,
@@ -83,7 +55,6 @@ export function BoardBuilderProvider({
   );
 }
 
-// Hook to use the board builder context
 export function useBoardBuilder() {
   const context = useContext(BoardBuilderContext);
   if (!context) {

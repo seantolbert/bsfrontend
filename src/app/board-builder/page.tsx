@@ -1,3 +1,5 @@
+"use client";
+
 import { BoardBuilderProvider } from "@/contexts/BoardBuilderContext";
 import BoardBuilderLayout from "@/components/BoardBuilderLayout";
 

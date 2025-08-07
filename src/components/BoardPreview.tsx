@@ -17,7 +17,7 @@ const COLORS = {
   ash: "#dcd2b8",
 };
 
-const TILE_WIDTH = 15;
+const TILE_WIDTH = 14;
 const TILE_HEIGHT = 14;
 const GAP_HEIGHT = 12;
 const SIDE_BUTTON_WIDTH = 28;
