@@ -1,180 +1,191 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useReducer,
-  ReactNode,
-  useMemo,
-} from "react";
+import React, { createContext, useContext, useMemo, useReducer } from "react";
 
 export type BoardSize = "small" | "medium" | "large";
 export type WoodId = string | null;
-export type StripLayout = { strip: "A" | "B"; reversed: boolean };
+export type StripKey = "A" | "B" | "C";
+
+export type StripLayout = { strip: StripKey; reversed: boolean };
 
 export interface BoardSnapshot {
   size: BoardSize;
-  strips: { A: WoodId[]; B: WoodId[] };
-  layout: StripLayout[];
+  strips: { A: WoodId[]; B: WoodId[]; C: WoodId[] };
+  layout: StripLayout[]; // each item = one “column” in the sideways board
   createdAt: string;
 }
 
-type State = {
-  snapshot: BoardSnapshot;
-};
-
+type State = { snapshot: BoardSnapshot };
 type Action =
   | { type: "LOAD_SNAPSHOT"; payload: BoardSnapshot }
   | { type: "SET_SIZE"; payload: BoardSize }
   | {
       type: "SET_STRIP_CELL";
-      payload: { strip: "A" | "B"; index: number; wood: WoodId };
+      payload: { strip: StripKey; index: number; wood: WoodId };
     }
-  | { type: "SET_STRIP"; payload: { strip: "A" | "B"; woods: WoodId[] } }
-  | { type: "MOVE_ROW"; payload: { from: number; to: number } }
-  | { type: "TOGGLE_ROW_REVERSED"; payload: { rowIndex: number } }
-  | { type: "SET_LAYOUT"; payload: StripLayout[] };
+  | { type: "SET_STRIP"; payload: { strip: StripKey; woods: WoodId[] } }
+  | { type: "SET_LAYOUT"; payload: StripLayout[] }
+  | { type: "MOVE_COLUMN"; payload: { from: number; to: number } }
+  | { type: "TOGGLE_COLUMN_REVERSED"; payload: { columnIndex: number } }
+  | {
+      type: "SET_COLUMN_STRIP";
+      payload: { columnIndex: number; strip: StripKey };
+    };
 
-function makeEmptyStrips(size: BoardSize): { A: WoodId[]; B: WoodId[] } {
-  const cols = size === "large" ? 15 : 12;
-  return { A: Array(cols).fill(null), B: Array(cols).fill(null) };
+function colsFor(size: BoardSize) {
+  return size === "large" ? 15 : 12;
+}
+function rowsFor(size: BoardSize) {
+  return size === "small" ? 10 : size === "large" ? 19 : 14;
+}
+
+function emptyStrips(size: BoardSize) {
+  const n = colsFor(size);
+  return {
+    A: Array<WoodId>(n).fill(null),
+    B: Array<WoodId>(n).fill(null),
+    C: Array<WoodId>(n).fill(null),
+  };
 }
 function defaultLayout(size: BoardSize): StripLayout[] {
-  const rows = size === "small" ? 10 : size === "large" ? 19 : 14;
-  // default ABAB...
-  return Array.from({ length: rows }, (_, i) => ({
-    strip: i % 2 === 0 ? "A" : "B",
+  // Sideways board: each item in layout is a VERTICAL stack of tiles = a “column”.
+  const n = rowsFor(size); // number of columns (previously rows)
+  // default cycles A,B,C,A,B,C...
+  const cycle: StripKey[] = ["A", "B", "C"];
+  return Array.from({ length: n }, (_, i) => ({
+    strip: cycle[i % 3],
     reversed: false,
   }));
 }
 
-const initialSnapshot: BoardSnapshot = {
+const initial: BoardSnapshot = {
   size: "medium",
-  strips: makeEmptyStrips("medium"),
+  strips: emptyStrips("medium"),
   layout: defaultLayout("medium"),
   createdAt: new Date().toISOString(),
 };
 
+function resizeStrip(arr: WoodId[], size: BoardSize) {
+  const n = colsFor(size);
+  if (arr.length === n) return arr.slice();
+  if (arr.length > n) return arr.slice(0, n);
+  return [...arr, ...Array<WoodId>(n - arr.length).fill(null)];
+}
+
 function reducer(state: State, action: Action): State {
+  const snap = state.snapshot;
   switch (action.type) {
-    case "LOAD_SNAPSHOT": {
+    case "LOAD_SNAPSHOT":
       return { snapshot: { ...action.payload } };
-    }
+
     case "SET_SIZE": {
       const size = action.payload;
-      const rows = size === "small" ? 10 : size === "large" ? 19 : 14;
-      const cols = size === "large" ? 15 : 12;
+      // resize strips (columns count)
+      const A = resizeStrip(snap.strips.A, size);
+      const B = resizeStrip(snap.strips.B, size);
+      const C = resizeStrip(snap.strips.C, size);
 
-      // Resize strips
-      const resize = (arr: WoodId[]) =>
-        arr.length === cols
-          ? arr.slice()
-          : arr.length > cols
-          ? arr.slice(0, cols)
-          : [...arr, ...Array(cols - arr.length).fill(null)];
+      // resize layout (number of columns in sideways board = rowsFor(size))
+      const target = rowsFor(size);
+      let layout = snap.layout.slice();
+      if (layout.length > target) layout = layout.slice(0, target);
+      if (layout.length < target) {
+        const extra = defaultLayout(size).slice(0, target - layout.length);
+        layout = [...layout, ...extra];
+      }
 
-      const newA = resize(state.snapshot.strips.A);
-      const newB = resize(state.snapshot.strips.B);
-
-      // Resize layout (preserve existing pattern as much as possible)
-      const newLayout =
-        state.snapshot.layout.length === rows
-          ? state.snapshot.layout.slice()
-          : state.snapshot.layout.length > rows
-          ? state.snapshot.layout.slice(0, rows)
-          : [
-              ...state.snapshot.layout,
-              ...defaultLayout(size).slice(state.snapshot.layout.length),
-            ];
-
-      return {
-        snapshot: {
-          ...state.snapshot,
-          size,
-          strips: { A: newA, B: newB },
-          layout: newLayout,
-        },
-      };
+      return { snapshot: { ...snap, size, strips: { A, B, C }, layout } };
     }
+
     case "SET_STRIP_CELL": {
       const { strip, index, wood } = action.payload;
-      const next = { ...state.snapshot.strips };
-      const arr = next[strip].slice();
-      arr[index] = wood;
-      next[strip] = arr;
-      return { snapshot: { ...state.snapshot, strips: next } };
+      const nextStrips = {
+        ...snap.strips,
+        [strip]: snap.strips[strip].slice(),
+      };
+      nextStrips[strip][index] = wood;
+      return { snapshot: { ...snap, strips: nextStrips } };
     }
+
     case "SET_STRIP": {
       const { strip, woods } = action.payload;
       return {
         snapshot: {
-          ...state.snapshot,
-          strips: { ...state.snapshot.strips, [strip]: woods.slice() },
+          ...snap,
+          strips: { ...snap.strips, [strip]: woods.slice() },
         },
       };
     }
-    case "MOVE_ROW": {
+
+    case "SET_LAYOUT":
+      return { snapshot: { ...snap, layout: action.payload.slice() } };
+
+    case "MOVE_COLUMN": {
       const { from, to } = action.payload;
-      if (to < 0 || to >= state.snapshot.layout.length) return state;
-      const layout = state.snapshot.layout.slice();
-      const [row] = layout.splice(from, 1);
-      layout.splice(to, 0, row);
-      return { snapshot: { ...state.snapshot, layout } };
+      if (to < 0 || to >= snap.layout.length) return state;
+      const layout = snap.layout.slice();
+      const [col] = layout.splice(from, 1);
+      layout.splice(to, 0, col);
+      return { snapshot: { ...snap, layout } };
     }
-    case "TOGGLE_ROW_REVERSED": {
-      const { rowIndex } = action.payload;
-      const layout = state.snapshot.layout.slice();
-      layout[rowIndex] = {
-        ...layout[rowIndex],
-        reversed: !layout[rowIndex].reversed,
+
+    case "TOGGLE_COLUMN_REVERSED": {
+      const { columnIndex } = action.payload;
+      const layout = snap.layout.slice();
+      layout[columnIndex] = {
+        ...layout[columnIndex],
+        reversed: !layout[columnIndex].reversed,
       };
-      return { snapshot: { ...state.snapshot, layout } };
+      return { snapshot: { ...snap, layout } };
     }
-    case "SET_LAYOUT": {
-      return {
-        snapshot: { ...state.snapshot, layout: action.payload.slice() },
-      };
+
+    case "SET_COLUMN_STRIP": {
+      const { columnIndex, strip } = action.payload;
+      const layout = snap.layout.slice();
+      layout[columnIndex] = { ...layout[columnIndex], strip };
+      return { snapshot: { ...snap, layout } };
     }
+
     default:
       return state;
   }
 }
 
-const SnapshotContext = createContext<{
+const Ctx = createContext<{
   snapshot: BoardSnapshot;
   dispatch: React.Dispatch<Action>;
-  // selectors
-  boardRows: { id: string; color: WoodId }[][];
+  // derived: grid built SIDEWAYS (columns = layout length, rows = column tiles)
+  grid: { id: string; color: WoodId }[][]; // grid[col][row]
 } | null>(null);
 
-export function SnapshotProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, { snapshot: initialSnapshot });
+export function SnapshotProvider({ children }: { children: React.ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, { snapshot: initial });
 
-  // Derived rows for the preview (inflated from snapshot)
-  const boardRows = useMemo(() => {
-    const { strips, layout } = state.snapshot;
-    return layout.map(({ strip, reversed }, rowIndex) => {
-      const base = strip === "A" ? strips.A : strips.B;
-      const arr = reversed ? [...base].reverse() : base;
-      return arr.map((color, colIndex) => ({
-        id: `${rowIndex}-${colIndex}`,
-        color,
+  const grid = useMemo(() => {
+    const { layout, strips, size } = state.snapshot;
+    const rows = colsFor(size); // number of tiles PER column (width of strip)
+    const cols = layout.length; // number of columns (sideways)
+    // Build per column (x) then per row (y)
+    return Array.from({ length: cols }, (_, colIndex) => {
+      const { strip, reversed } = layout[colIndex];
+      const source = strips[strip];
+      const columnTiles = reversed ? [...source].reverse() : source;
+      return Array.from({ length: rows }, (_, rowIndex) => ({
+        id: `${colIndex}-${rowIndex}`,
+        color: columnTiles[rowIndex] ?? null,
       }));
     });
   }, [state.snapshot]);
 
   return (
-    <SnapshotContext.Provider
-      value={{ snapshot: state.snapshot, dispatch, boardRows }}
-    >
+    <Ctx.Provider value={{ snapshot: state.snapshot, dispatch, grid }}>
       {children}
-    </SnapshotContext.Provider>
+    </Ctx.Provider>
   );
 }
 
 export function useSnapshot() {
-  const ctx = useContext(SnapshotContext);
-  if (!ctx)
-    throw new Error("useSnapshot must be used within a SnapshotProvider");
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("useSnapshot must be used within SnapshotProvider");
   return ctx;
 }

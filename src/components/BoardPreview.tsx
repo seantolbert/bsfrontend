@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useSnapshot } from "@/contexts/SnapshotStore";
-import RowActionButtonUp from "./RowActionButtonUp";
-import RowActionButtonDown from "./RowActionButtonDown";
-import FlipSelectedRowButton from "./FlipSelectedRowButton";
+import { useSnapshotActions } from "@/hooks/useSnapshotActions";
 
 const COLORS: Record<string, string> = {
   maple: "#f3e2c6",
@@ -17,140 +15,158 @@ const COLORS: Record<string, string> = {
   ash: "#dcd2b8",
 };
 
-const TILE_WIDTH = 15;
-const TILE_HEIGHT = 14;
-const GAP_HEIGHT = 12;
-const SIDE_BUTTON_WIDTH = 28;
-const SIDE_MARGIN = SIDE_BUTTON_WIDTH + 4;
+const TILE_W = 14; // width of a single tile
+const TILE_H = 14; // height of a single tile
+const GAP = 10; // gap to isolate selected column
+const SIDE_BTN_W = 28;
+const MARGIN = SIDE_BTN_W + 4;
 
 export default function BoardPreview() {
-  const { snapshot, dispatch, boardRows } = useSnapshot();
-  const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
-  const [draggingRowIndex, setDraggingRowIndex] = useState<number | null>(null);
-  const [dragY, setDragY] = useState<number>(0);
+  const { snapshot, grid } = useSnapshot(); // grid[col][row]
+  const { moveColumn, toggleColumnReversed, setColumnStrip } =
+    useSnapshotActions();
+  const [activeCol, setActiveCol] = useState<number | null>(null);
 
-  const rowCount = snapshot.layout.length;
-  const columnCount = snapshot.size === "large" ? 15 : 12;
+  const cols = grid.length;
+  const rows = grid[0]?.length ?? 0;
 
-  const moveRow = (from: number, to: number) => {
-    dispatch({ type: "MOVE_ROW", payload: { from, to } });
-    setActiveRowIndex(to);
-  };
-
-  const toggleRowFlip = (rowIndex: number) => {
-    dispatch({ type: "TOGGLE_ROW_REVERSED", payload: { rowIndex } });
-  };
-
-  const handlePointerDown = (e: React.PointerEvent, rowIndex: number) => {
-    setDraggingRowIndex(rowIndex);
-    setDragY(e.clientY);
-    (e.target as Element).setPointerCapture(e.pointerId);
-  };
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (draggingRowIndex === null) return;
-    const delta = e.clientY - dragY;
-    const threshold = TILE_HEIGHT;
-    const direction = delta > 0 ? 1 : -1;
-    const targetIndex = draggingRowIndex + direction;
-
-    if (
-      Math.abs(delta) > threshold &&
-      targetIndex >= 0 &&
-      targetIndex < rowCount
-    ) {
-      moveRow(draggingRowIndex, targetIndex);
-      setDraggingRowIndex(targetIndex);
-      setDragY(e.clientY);
-    }
-  };
-  const handlePointerUp = () => setDraggingRowIndex(null);
-
-  const totalHeight =
-    TILE_HEIGHT * rowCount + (activeRowIndex !== null ? GAP_HEIGHT * 2 : 0);
-  const totalWidth = TILE_WIDTH * columnCount + SIDE_MARGIN * 2;
+  const totalW = TILE_W * cols + MARGIN * 2;
+  const totalH = TILE_H * rows + 24; // label space
 
   return (
-    <div className="bg-[#fdfcfb] border border-[#e2ded9] rounded-xl h-full flex flex-col items-center justify-evenly overflow-hidden">
-      <svg
-        width={totalWidth}
-        height={totalHeight}
-        viewBox={`-${SIDE_MARGIN} 0 ${totalWidth} ${totalHeight}`}
-      >
-        {boardRows.map((row, rowIndex) => {
-          let y = rowIndex * TILE_HEIGHT;
-          if (activeRowIndex !== null) {
-            if (rowIndex === activeRowIndex) y += GAP_HEIGHT;
-            else if (rowIndex > activeRowIndex) y += GAP_HEIGHT * 2;
-          }
-
-          const rowLabel = snapshot.layout[rowIndex]?.strip || "?";
-
+    <div className="bg-[#fdfcfb] border border-[#e2ded9] rounded-xl w-full overflow-hidden">
+      <svg width="100%" viewBox={`0 0 ${totalW} ${totalH}`}>
+        {/* col labels (A/B/C) */}
+        {snapshot.layout.map((colMeta, col) => {
+          const x =
+            MARGIN +
+            col * TILE_W +
+            (activeCol !== null && col > activeCol ? GAP : 0);
           return (
-            <g
-              key={`row-${rowIndex}`}
-              onPointerDown={(e) => handlePointerDown(e, rowIndex)}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
+            <text
+              key={`lbl-${col}`}
+              x={x + TILE_W / 2}
+              y={12}
+              fontSize="10"
+              textAnchor="middle"
+              fill="#888"
             >
-              <text
-                x={-SIDE_MARGIN / 2}
-                y={y + TILE_HEIGHT / 2 + 4}
-                fontSize="10"
-                textAnchor="middle"
-                fill="#888"
-              >
-                {rowLabel}
-              </text>
+              {colMeta.strip}
+            </text>
+          );
+        })}
 
-              {activeRowIndex === rowIndex && (
+        {/* columns */}
+        {grid.map((column, col) => {
+          let x = MARGIN + col * TILE_W;
+          if (activeCol !== null) x += col > activeCol ? GAP : 0;
+          return (
+            <g key={`col-${col}`}>
+              {/* action buttons when selected */}
+              {activeCol === col && (
                 <>
-                  <RowActionButtonUp
-                    y={y}
-                    onClick={() => moveRow(rowIndex, rowIndex - 1)}
-                  />
-                  <RowActionButtonDown
-                    y={y}
-                    xOffset={TILE_WIDTH * columnCount + 4}
-                    onClick={() => moveRow(rowIndex, rowIndex + 1)}
-                  />
+                  {/* move left */}
+                  <foreignObject
+                    x={x - 30}
+                    y={totalH / 2 - 8}
+                    width="26"
+                    height="16"
+                  >
+                    <button
+                      className="w-full h-full text-xs bg-white border border-gray-400 rounded hover:bg-gray-100"
+                      onClick={() => moveColumn(col, col - 1)}
+                    >
+                      ⬅
+                    </button>
+                  </foreignObject>
+                  {/* move right */}
+                  <foreignObject
+                    x={x + TILE_W + 4}
+                    y={totalH / 2 - 8}
+                    width="26"
+                    height="16"
+                  >
+                    <button
+                      className="w-full h-full text-xs bg-white border border-gray-400 rounded hover:bg-gray-100"
+                      onClick={() => moveColumn(col, col + 1)}
+                    >
+                      ➡
+                    </button>
+                  </foreignObject>
+                  {/* flip */}
+                  <foreignObject
+                    x={x - 30}
+                    y={totalH - 22}
+                    width="90"
+                    height="18"
+                  >
+                    <button
+                      className="w-full h-full text-xs bg-white border border-gray-400 rounded hover:bg-gray-100"
+                      onClick={() => toggleColumnReversed(col)}
+                    >
+                      🔁 Flip Column
+                    </button>
+                  </foreignObject>
+
+                  {/* change strip (A/B/C) */}
+                  <foreignObject
+                    x={x + TILE_W + 4}
+                    y={totalH - 22}
+                    width="110"
+                    height="18"
+                  >
+                    <div className="w-full h-full flex gap-1">
+                      {(["A", "B", "C"] as const).map((s) => (
+                        <button
+                          key={s}
+                          className={`flex-1 text-xs border rounded ${
+                            snapshot.layout[col].strip === s
+                              ? "bg-black text-white"
+                              : "bg-white border-gray-400 hover:bg-gray-100"
+                          }`}
+                          onClick={() => setColumnStrip(col, s)}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </foreignObject>
                 </>
               )}
 
-              {row.map((tile, colIndex) => (
-                <rect
-                  key={tile.id}
-                  x={colIndex * TILE_WIDTH}
-                  y={y}
-                  width={TILE_WIDTH}
-                  height={TILE_HEIGHT}
-                  fill={
-                    draggingRowIndex === rowIndex
-                      ? "#ddd"
-                      : COLORS[tile.color || ""] || "#eee"
-                  }
-                  stroke={activeRowIndex === rowIndex ? "#000" : "#aaa"}
-                  strokeWidth={activeRowIndex === rowIndex ? 1.5 : 0.5}
-                  rx={2}
-                  onClick={() =>
-                    setActiveRowIndex(
-                      activeRowIndex === rowIndex ? null : rowIndex
-                    )
-                  }
-                  className="cursor-pointer"
-                />
-              ))}
+              {/* tiles (top to bottom) */}
+              {column.map((tile, row) => {
+                const y = 18 + row * TILE_H;
+                return (
+                  <rect
+                    key={tile.id}
+                    x={x}
+                    y={y}
+                    width={TILE_W}
+                    height={TILE_H}
+                    fill={COLORS[tile.color || ""] || "#eee"}
+                    stroke={activeCol === col ? "#000" : "#aaa"}
+                    strokeWidth={activeCol === col ? 1.5 : 0.5}
+                    rx={2}
+                    onClick={() => setActiveCol(activeCol === col ? null : col)}
+                  />
+                );
+              })}
             </g>
           );
         })}
-      </svg>
 
-      <div className="h-8 w-full flex justify-center items-center mt-2">
-        {activeRowIndex !== null && (
-          <FlipSelectedRowButton
-            onClick={() => toggleRowFlip(activeRowIndex)}
+        {/* gap to isolate active column */}
+        {activeCol !== null && (
+          <rect
+            x={MARGIN + (activeCol + 1) * TILE_W}
+            y={0}
+            width={GAP}
+            height={totalH}
+            fill="transparent"
           />
         )}
-      </div>
+      </svg>
     </div>
   );
 }

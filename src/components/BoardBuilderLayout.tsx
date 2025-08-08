@@ -1,35 +1,27 @@
 "use client";
 
-import TopNav from "./TopNav";
 import BoardPreview from "./BoardPreview";
-import BoardControls from "./BoardControls";
-import BottomNav from "./BottomNav";
-import OptionSelector from "./OptionSelector";
-import { useSnapshotLoader } from "@/hooks/useSnapshotLoader";
+import StripEditor from "./StripEditor";
+import SizeSelector from "./SizeSelector";
 
 export default function BoardBuilderLayout() {
-  useSnapshotLoader();
-
+  // Mobile-first: preview on top, controls stacked; later we can reflow for desktop
   return (
-    <div className="h-[calc(100vh-56px)] w-full flex flex-col">
-      <div className="h-14 flex items-center justify-center border-b border-[#ddd] px-4">
-        <TopNav />
+    <div className="h-screen w-screen overflow-hidden flex flex-col">
+      {/* Top: Board Preview (sideways) */}
+      <div className="flex-none p-3">
+        <BoardPreview />
       </div>
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 flex px-4">
-          <div className="flex-3 overflow-hidden ">
-            <BoardPreview />
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <OptionSelector />
-          </div>
+
+      {/* Controls */}
+      <div className="flex-1 flex flex-col gap-3 p-3 pt-0">
+        <SizeSelector />
+        {/* Three strip editors (A,B,C) */}
+        <div className="grid grid-cols-3 gap-2">
+          <StripEditor strip="A" />
+          <StripEditor strip="B" />
+          <StripEditor strip="C" />
         </div>
-        <div className="h-[300px] px-4 pb-2">
-          <BoardControls />
-        </div>
-      </div>
-      <div className="h-16 border-t border-[#ddd] px-4">
-        <BottomNav />
       </div>
     </div>
   );

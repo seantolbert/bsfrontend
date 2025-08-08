@@ -1,12 +1,18 @@
 "use client";
 
-import { BoardBuilderProvider } from "@/contexts/BoardBuilderContext";
+import { SnapshotProvider } from "@/contexts/SnapshotStore";
+import { useSnapshotFromUrl } from "@/hooks/useSnapshotFromUrl";
 import BoardBuilderLayout from "@/components/BoardBuilderLayout";
+
+function PageInner() {
+  useSnapshotFromUrl();
+  return <BoardBuilderLayout />;
+}
 
 export default function BoardBuilderPage() {
   return (
-    <BoardBuilderProvider>
-      <BoardBuilderLayout />
-    </BoardBuilderProvider>
+    <SnapshotProvider>
+      <PageInner />
+    </SnapshotProvider>
   );
 }
