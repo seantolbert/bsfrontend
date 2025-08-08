@@ -51,6 +51,8 @@ const demoTemplates = [
         { strip: "B", reversed: true },
         { strip: "A", reversed: false },
         { strip: "B", reversed: false },
+        { strip: "B", reversed: false },
+        { strip: "B", reversed: false },
       ],
     },
   },

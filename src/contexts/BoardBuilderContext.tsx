@@ -3,26 +3,20 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
 type BoardSize = "small" | "medium" | "large";
-
-type Tile = {
-  id: string;
-  color: string | null;
-};
-
-type Row = Tile[];
+type StripLayout = { strip: "A" | "B"; reversed: boolean };
 
 interface BoardBuilderContextType {
   boardSize: BoardSize;
   setBoardSize: (size: BoardSize) => void;
-
-  boardRows: Row[];
-  setBoardRows: (rows: Row[]) => void;
 
   stripA: (string | null)[];
   setStripA: (woods: (string | null)[]) => void;
 
   stripB: (string | null)[];
   setStripB: (woods: (string | null)[]) => void;
+
+  layout: StripLayout[];
+  setLayout: (layout: StripLayout[]) => void;
 }
 
 const BoardBuilderContext = createContext<BoardBuilderContextType | undefined>(
@@ -31,23 +25,21 @@ const BoardBuilderContext = createContext<BoardBuilderContextType | undefined>(
 
 export function BoardBuilderProvider({ children }: { children: ReactNode }) {
   const [boardSize, setBoardSize] = useState<BoardSize>("medium");
-
-  const [boardRows, setBoardRows] = useState<Row[]>([]);
-
   const [stripA, setStripA] = useState<(string | null)[]>(Array(12).fill(null));
   const [stripB, setStripB] = useState<(string | null)[]>(Array(12).fill(null));
+  const [layout, setLayout] = useState<StripLayout[]>([]);
 
   return (
     <BoardBuilderContext.Provider
       value={{
         boardSize,
         setBoardSize,
-        boardRows,
-        setBoardRows,
         stripA,
         setStripA,
         stripB,
         setStripB,
+        layout,
+        setLayout,
       }}
     >
       {children}

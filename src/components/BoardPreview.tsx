@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useBoardBuilder } from "@/contexts/BoardBuilderContext";
-import RowActionButtonDown from "./RowActionButtonDown";
+import { useState } from "react";
+import { useSnapshot } from "@/contexts/SnapshotStore";
 import RowActionButtonUp from "./RowActionButtonUp";
+import RowActionButtonDown from "./RowActionButtonDown";
 import FlipSelectedRowButton from "./FlipSelectedRowButton";
 
-const COLORS = {
+const COLORS: Record<string, string> = {
   maple: "#f3e2c6",
   ambrosia: "#dec9a0",
   cherry: "#a24f2c",
@@ -17,72 +17,28 @@ const COLORS = {
   ash: "#dcd2b8",
 };
 
-const TILE_WIDTH = 14;
+const TILE_WIDTH = 15;
 const TILE_HEIGHT = 14;
 const GAP_HEIGHT = 12;
 const SIDE_BUTTON_WIDTH = 28;
 const SIDE_MARGIN = SIDE_BUTTON_WIDTH + 4;
 
 export default function BoardPreview() {
-  const { stripA, stripB, boardSize } = useBoardBuilder();
+  const { snapshot, dispatch, boardRows } = useSnapshot();
   const [activeRowIndex, setActiveRowIndex] = useState<number | null>(null);
-  const [boardRows, setBoardRows] = useState<
-    { id: string; color: string | null }[][]
-  >([]);
   const [draggingRowIndex, setDraggingRowIndex] = useState<number | null>(null);
   const [dragY, setDragY] = useState<number>(0);
 
-  const rowCount = {
-    small: 10,
-    medium: 14,
-    large: 19,
-  }[boardSize || "medium"];
+  const rowCount = snapshot.layout.length;
+  const columnCount = snapshot.size === "large" ? 15 : 12;
 
-  const columnCount = boardSize === "large" ? 15 : 12;
-
-  useEffect(() => {
-    const rows = Array.from({ length: rowCount }, (_, rowIndex) => {
-      const sourceStrip = rowIndex % 2 === 0 ? stripA : stripB;
-      return Array.from({ length: columnCount }, (_, colIndex) => ({
-        id: `${rowIndex}-${colIndex}-${Math.random()
-          .toString(36)
-          .substr(2, 5)}`,
-        color: sourceStrip[colIndex] || null,
-      }));
-    });
-    setBoardRows(rows);
-  }, [stripA, stripB, boardSize]);
+  const moveRow = (from: number, to: number) => {
+    dispatch({ type: "MOVE_ROW", payload: { from, to } });
+    setActiveRowIndex(to);
+  };
 
   const toggleRowFlip = (rowIndex: number) => {
-    setBoardRows((prev) => {
-      const updated = [...prev];
-      updated[rowIndex] = [...updated[rowIndex]].reverse();
-      return updated;
-    });
-  };
-
-  const moveRowUp = (rowIndex: number) => {
-    if (rowIndex <= 0) return;
-    setBoardRows((prev) => {
-      const updated = [...prev];
-      const temp = updated[rowIndex - 1];
-      updated[rowIndex - 1] = updated[rowIndex];
-      updated[rowIndex] = temp;
-      return updated;
-    });
-    setActiveRowIndex((prev) => (prev === null ? null : prev - 1));
-  };
-
-  const moveRowDown = (rowIndex: number) => {
-    if (rowIndex >= boardRows.length - 1) return;
-    setBoardRows((prev) => {
-      const updated = [...prev];
-      const temp = updated[rowIndex + 1];
-      updated[rowIndex + 1] = updated[rowIndex];
-      updated[rowIndex] = temp;
-      return updated;
-    });
-    setActiveRowIndex((prev) => (prev === null ? null : prev + 1));
+    dispatch({ type: "TOGGLE_ROW_REVERSED", payload: { rowIndex } });
   };
 
   const handlePointerDown = (e: React.PointerEvent, rowIndex: number) => {
@@ -90,31 +46,24 @@ export default function BoardPreview() {
     setDragY(e.clientY);
     (e.target as Element).setPointerCapture(e.pointerId);
   };
-
   const handlePointerMove = (e: React.PointerEvent) => {
     if (draggingRowIndex === null) return;
     const delta = e.clientY - dragY;
     const threshold = TILE_HEIGHT;
-    if (Math.abs(delta) > threshold) {
-      const direction = delta > 0 ? 1 : -1;
-      const targetIndex = draggingRowIndex + direction;
-      if (targetIndex >= 0 && targetIndex < boardRows.length) {
-        setBoardRows((prev) => {
-          const updated = [...prev];
-          const temp = updated[draggingRowIndex];
-          updated[draggingRowIndex] = updated[targetIndex];
-          updated[targetIndex] = temp;
-          return updated;
-        });
-        setDraggingRowIndex(targetIndex);
-        setDragY(e.clientY);
-      }
+    const direction = delta > 0 ? 1 : -1;
+    const targetIndex = draggingRowIndex + direction;
+
+    if (
+      Math.abs(delta) > threshold &&
+      targetIndex >= 0 &&
+      targetIndex < rowCount
+    ) {
+      moveRow(draggingRowIndex, targetIndex);
+      setDraggingRowIndex(targetIndex);
+      setDragY(e.clientY);
     }
   };
-
-  const handlePointerUp = () => {
-    setDraggingRowIndex(null);
-  };
+  const handlePointerUp = () => setDraggingRowIndex(null);
 
   const totalHeight =
     TILE_HEIGHT * rowCount + (activeRowIndex !== null ? GAP_HEIGHT * 2 : 0);
@@ -134,7 +83,7 @@ export default function BoardPreview() {
             else if (rowIndex > activeRowIndex) y += GAP_HEIGHT * 2;
           }
 
-          const rowLabel = rowIndex % 2 === 0 ? "A" : "B";
+          const rowLabel = snapshot.layout[rowIndex]?.strip || "?";
 
           return (
             <g
@@ -157,12 +106,12 @@ export default function BoardPreview() {
                 <>
                   <RowActionButtonUp
                     y={y}
-                    onClick={() => moveRowUp(rowIndex)}
+                    onClick={() => moveRow(rowIndex, rowIndex - 1)}
                   />
                   <RowActionButtonDown
                     y={y}
                     xOffset={TILE_WIDTH * columnCount + 4}
-                    onClick={() => moveRowDown(rowIndex)}
+                    onClick={() => moveRow(rowIndex, rowIndex + 1)}
                   />
                 </>
               )}
@@ -177,7 +126,7 @@ export default function BoardPreview() {
                   fill={
                     draggingRowIndex === rowIndex
                       ? "#ddd"
-                      : COLORS[tile.color] || "#eee"
+                      : COLORS[tile.color || ""] || "#eee"
                   }
                   stroke={activeRowIndex === rowIndex ? "#000" : "#aaa"}
                   strokeWidth={activeRowIndex === rowIndex ? 1.5 : 0.5}
